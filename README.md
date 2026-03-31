@@ -17,3 +17,7 @@
 ### 🗄️ Database & Deployment
 ![MySQL](https://img.shields.io/badge/mysql-%2300f.svg?style=for-the-badge&logo=mysql&logoColor=white)
 ![Vercel](https://img.shields.io/badge/vercel-%23000000.svg?style=for-the-badge&logo=vercel&logoColor=white)
+
+## 🚀 My Contributions
+
+![](./profile-3d-contrib/profile-green-animate.svg)
