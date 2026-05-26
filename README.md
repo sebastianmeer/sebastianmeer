@@ -33,5 +33,3 @@
   <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/sebastianmeer/sebastianmeer/output/galaga-contribution-graph.svg">
   <img alt="Galaga contribution graph" src="https://raw.githubusercontent.com/sebastianmeer/sebastianmeer/output/galaga-contribution-graph.svg">
 </picture>
-
-![](profile-3d-contrib/profile-green-animate.svg)
