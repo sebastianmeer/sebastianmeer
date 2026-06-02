@@ -5,20 +5,22 @@ const distDir = path.resolve('dist');
 const dataPath = path.join(distDir, 'galaga-data.json');
 const data = JSON.parse((await fs.readFile(dataPath, 'utf8')).replace(/^\uFEFF/, ''));
 
-const width = 1360;
-const height = 360;
+const width = 2060;
+const height = 640;
+const waveCount = 7;
+const cycleSeconds = 28;
+const rows = 7;
 
 const grid = {
-  x: 40,
-  y: 102,
-  cell: 20,
-  gap: 2,
+  x: 88,
+  y: 212,
+  cell: 28,
+  gap: 5,
 };
 
 const step = grid.cell + grid.gap;
 const pixel = 2;
 const sprite = 16;
-const rows = 7;
 
 const alienSprites = {
   drone: [
@@ -71,7 +73,7 @@ const alienSprites = {
     '01111110',
     '00100100',
   ],
-  shot: [
+  laser: [
     '1',
     '1',
     '1',
@@ -100,68 +102,67 @@ function makeRng(seed) {
   };
 }
 
-function getPalette(dark) {
+function palette(dark) {
   return dark
     ? {
-        skyA: '#02040b',
-        skyB: '#07101f',
-        glowA: '#63f4ff',
-        glowB: '#ff4bd8',
-        line: 'rgba(99, 244, 255, 0.26)',
-        panel: 'rgba(3, 7, 16, 0.74)',
-        panelLine: 'rgba(99, 244, 255, 0.22)',
-        text: '#f3fbff',
-        muted: '#a8c3de',
-        grid: 'rgba(142, 182, 224, 0.13)',
-        cell0: 'rgba(10, 20, 34, 0.78)',
+        skyA: '#010208',
+        skyB: '#07101d',
+        glowA: '#59f1ff',
+        glowB: '#ff46d8',
+        line: 'rgba(89, 241, 255, 0.22)',
+        panel: 'rgba(3, 7, 18, 0.74)',
+        panelLine: 'rgba(89, 241, 255, 0.22)',
+        text: '#f5fbff',
+        muted: '#9eb9d3',
+        grid: 'rgba(146, 187, 226, 0.14)',
+        cell0: 'rgba(11, 21, 36, 0.82)',
         cellBorder: 'rgba(109, 236, 255, 0.16)',
-        strip: 'rgba(4, 10, 22, 0.9)',
+        strip: 'rgba(6, 12, 25, 0.88)',
         ship: '#ffd54a',
-        shipGlow: 'rgba(255, 213, 74, 0.32)',
-        playfieldTop: '#132033',
-        playfieldBottom: '#0a1120',
-        active: ['#58f7ff', '#48e4ff', '#86ff8f', '#ffd55b', '#ff7871'],
+        shipGlow: 'rgba(255, 213, 74, 0.36)',
+        laser: '#78f8ff',
+        explosion: '#ffab52',
+        playfieldTop: '#132032',
+        playfieldBottom: '#09111d',
+        active: ['#59f1ff', '#47dfff', '#8cff8a', '#ffd55a', '#ff7770'],
       }
     : {
-        skyA: '#04080f',
-        skyB: '#111f35',
+        skyA: '#03050b',
+        skyB: '#111e34',
         glowA: '#77f8ff',
-        glowB: '#ff69d6',
+        glowB: '#ff67d5',
         line: 'rgba(119, 248, 255, 0.2)',
-        panel: 'rgba(10, 18, 34, 0.68)',
-        panelLine: 'rgba(119, 248, 255, 0.22)',
+        panel: 'rgba(12, 20, 38, 0.68)',
+        panelLine: 'rgba(119, 248, 255, 0.2)',
         text: '#f7fcff',
-        muted: '#c0d7ea',
-        grid: 'rgba(163, 198, 229, 0.13)',
-        cell0: 'rgba(15, 26, 44, 0.72)',
+        muted: '#c2d7ea',
+        grid: 'rgba(166, 199, 230, 0.14)',
+        cell0: 'rgba(15, 26, 44, 0.74)',
         cellBorder: 'rgba(121, 242, 255, 0.16)',
-        strip: 'rgba(13, 21, 38, 0.8)',
-        ship: '#ffde68',
-        shipGlow: 'rgba(255, 222, 104, 0.28)',
-        playfieldTop: '#18253f',
-        playfieldBottom: '#0e1727',
-        active: ['#78f8ff', '#5fe0ff', '#8eff8f', '#ffd768', '#ff8c7c'],
+        strip: 'rgba(15, 22, 40, 0.8)',
+        ship: '#ffe06b',
+        shipGlow: 'rgba(255, 224, 107, 0.28)',
+        laser: '#7af8ff',
+        explosion: '#ffb35e',
+        playfieldTop: '#18233b',
+        playfieldBottom: '#0d1627',
+        active: ['#77f8ff', '#62e0ff', '#8eff8f', '#ffd86b', '#ff8a7b'],
       };
 }
 
-function buildStarfield(seed, count, palette, twinkle = true) {
+function buildStarfield(seed, count, p) {
   const rng = makeRng(seed);
   const stars = [];
   for (let index = 0; index < count; index += 1) {
     const x = 10 + Math.round(rng() * (width - 20));
-    const y = 10 + Math.round(rng() * (height - 20));
-    const radius = index % 7 === 0 ? 1.8 : index % 4 === 0 ? 1.15 : 0.75;
-    const opacity = 0.16 + rng() * 0.46;
-    const dur = (4 + rng() * 6).toFixed(1);
-    const delay = (rng() * 4).toFixed(1);
-    const twinkleMarkup = twinkle
-      ? `
-        <animate attributeName="opacity" values="${opacity.toFixed(2)};${(opacity * 0.45).toFixed(2)};${opacity.toFixed(2)}" dur="${dur}s" begin="${delay}s" repeatCount="indefinite" />`
-      : '';
-
+    const y = 12 + Math.round(rng() * (height - 24));
+    const radius = index % 7 === 0 ? 1.85 : index % 4 === 0 ? 1.1 : 0.72;
+    const opacity = 0.14 + rng() * 0.48;
+    const dur = (4.5 + rng() * 5.5).toFixed(1);
+    const delay = (rng() * 4.0).toFixed(1);
     stars.push(`
-      <circle cx="${x}" cy="${y}" r="${radius.toFixed(2)}" fill="${palette.text}" opacity="${opacity.toFixed(2)}">
-        ${twinkleMarkup.trim()}
+      <circle cx="${x}" cy="${y}" r="${radius.toFixed(2)}" fill="${p.text}" opacity="${opacity.toFixed(2)}">
+        <animate attributeName="opacity" values="${opacity.toFixed(2)};${(opacity * 0.45).toFixed(2)};${opacity.toFixed(2)}" dur="${dur}s" begin="${delay}s" repeatCount="indefinite" />
       </circle>`);
   }
   return stars.join('\n');
@@ -187,34 +188,59 @@ function spriteTypeForCount(count) {
   return 'drone';
 }
 
-function rowOffsetForWeek(index) {
-  const band = index % 8;
-  if (band < 2) return 0;
-  if (band < 4) return 1;
-  if (band < 6) return 2;
-  return 3;
+function waveForWeek(index, totalWeeks) {
+  const normalized = totalWeeks <= 1 ? 0 : index / (totalWeeks - 1);
+  return Math.min(waveCount - 1, Math.floor(normalized * waveCount));
 }
 
-function renderAlienCell(day, x, y, palette, weekIndex, rowIndex) {
+function waveStart(waveIndex) {
+  return waveIndex / waveCount;
+}
+
+function waveHit(waveIndex) {
+  return Math.min(0.92, waveStart(waveIndex) + 0.04);
+}
+
+function waveEnd(waveIndex) {
+  return Math.min(0.985, waveStart(waveIndex) + 0.12);
+}
+
+function waveCenterX(waveIndex) {
+  const playfieldWidth = width - 2 * grid.x;
+  return grid.x + playfieldWidth * ((waveIndex + 0.5) / waveCount);
+}
+
+function renderCell(day, x, y, p, weekIndex, totalWeeks, rowIndex) {
   const level = Math.max(0, Math.min(4, day.contributionCount));
-  const fill = level === 0 ? palette.cell0 : palette.active[level];
-  const spriteFill = level === 0 ? palette.cell0 : fill;
-  const spriteGlow = level === 0 ? 'transparent' : fill;
+  const waveIndex = waveForWeek(weekIndex, totalWeeks);
+  const start = waveStart(waveIndex);
+  const hit = waveHit(waveIndex);
+  const end = waveEnd(waveIndex);
   const type = level === 0 ? 'drone' : spriteTypeForCount(level);
-  const phase = ((weekIndex * 7) + rowIndex) % 6;
-  const delay = (phase * 0.35).toFixed(2);
-  const bob = rowIndex % 2 === 0 ? 1.8 : 2.3;
-  const drift = 1.5 + (weekIndex % 4) * 0.7;
-  const hover = level === 0 ? 0 : 1;
+  const cellFill = level === 0 ? p.cell0 : p.active[level];
+  const glowFill = level === 0 ? 'transparent' : p.active[level];
+  const hitStrength = Math.max(0.7, level / 4);
+  const seed = `${weekIndex}-${rowIndex}`;
+  const bob = 1.6 + ((weekIndex + rowIndex) % 3) * 0.35;
 
   return `
     <g transform="translate(${x},${y})">
-      <rect width="${grid.cell}" height="${grid.cell}" rx="4" fill="${palette.cell0}" stroke="${palette.cellBorder}" stroke-width="0.9" />
-      ${level > 0 ? `<animateTransform attributeName="transform" type="translate" values="0,0; 0,-${bob}; 0,0" dur="${(3.2 + drift / 2).toFixed(1)}s" begin="${delay}s" repeatCount="indefinite" />` : ''}
-      ${level > 0 ? `<animate attributeName="opacity" values="1;0.78;1" dur="${(2.6 + phase * 0.15).toFixed(1)}s" begin="${delay}s" repeatCount="indefinite" />` : ''}
-      ${level > 0 ? `<rect x="4" y="4" width="${grid.cell - 8}" height="${grid.cell - 8}" rx="3" fill="${spriteGlow}" opacity="0.18" />` : ''}
-      ${level > 0 ? drawMatrix(6, 6, alienSprites[type], spriteFill, 1) : ''}
-      ${level > 0 ? `<rect x="${grid.cell / 2 - 1}" y="${grid.cell / 2 - 1}" width="2" height="2" fill="${palette.text}" opacity="0.9" />` : ''}
+      <animate attributeName="opacity" values="1;1;0;0;1" keyTimes="0;${start.toFixed(3)};${hit.toFixed(3)};${end.toFixed(3)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+      <g>
+        <animateTransform attributeName="transform" type="translate" values="0,0; 0,-${bob.toFixed(2)}; 0,0" dur="${(2.4 + (level * 0.18)).toFixed(1)}s" begin="${(rowIndex * 0.24 + weekIndex * 0.04).toFixed(2)}s" repeatCount="indefinite" />
+        <rect width="${grid.cell}" height="${grid.cell}" rx="5" fill="${p.cell0}" stroke="${p.cellBorder}" stroke-width="0.9" />
+        ${level > 0 ? `<rect x="2" y="2" width="${grid.cell - 4}" height="${grid.cell - 4}" rx="4" fill="url(#cell-glow-${seed})" opacity="${(0.18 + hitStrength * 0.12).toFixed(2)}" />` : ''}
+        ${level > 0 ? drawMatrix(5, 5, alienSprites[type], cellFill, 1) : ''}
+        ${level > 0 ? `<rect x="${grid.cell / 2 - 1}" y="${grid.cell / 2 - 1}" width="2" height="2" fill="${p.text}" opacity="0.9" />` : ''}
+        ${level > 0 ? `
+          <g transform="translate(${grid.cell / 2},${grid.cell / 2})" opacity="0">
+            <animate attributeName="opacity" values="0;0;1;0;0" keyTimes="0;${start.toFixed(3)};${hit.toFixed(3)};${Math.min(0.99, hit + 0.07).toFixed(3)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+            <animateTransform attributeName="transform" type="scale" values="0.2;1.4;0.2" keyTimes="0;0.5;1" dur="0.8s" begin="${hit.toFixed(3)}s" repeatCount="indefinite" />
+            <circle r="2.2" fill="${p.explosion}" />
+            <circle r="6" fill="none" stroke="${p.explosion}" stroke-width="1.5" opacity="0.9" />
+            <path d="M 0 -8 L 0 -2 M 0 2 L 0 8 M -8 0 L -2 0 M 2 0 L 8 0" stroke="${p.explosion}" stroke-width="1.4" stroke-linecap="round" />
+          </g>` : ''}
+      </g>
     </g>`;
 }
 
@@ -252,13 +278,13 @@ function monthMarkers(weeks) {
 
   for (let weekIndex = 0; weekIndex < weeks.length; weekIndex += 1) {
     const firstDay = weeks[weekIndex].contributionDays[0];
-    const month = new Date(`${firstDay.date}T00:00:00Z`).getUTCMonth();
+    const date = new Date(`${firstDay.date}T00:00:00Z`);
+    const month = date.getUTCMonth();
     if (month !== lastMonth) {
-      const label = new Date(`${firstDay.date}T00:00:00Z`).toLocaleString('en-US', {
-        month: 'short',
-        timeZone: 'UTC',
-      }).toUpperCase();
-      markers.push({ x: grid.x + weekIndex * step, label });
+      markers.push({
+        x: grid.x + weekIndex * step,
+        label: date.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase(),
+      });
       lastMonth = month;
     }
   }
@@ -266,83 +292,124 @@ function monthMarkers(weeks) {
   return markers;
 }
 
-function weekdayLabels(palette) {
-  const labels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-  return labels
+function weekdayLabels(p) {
+  return ['S', 'M', 'T', 'W', 'T', 'F', 'S']
     .map((label, index) => {
-      const y = grid.y + index * step + 14;
-      return `<text x="10" y="${y}" fill="${palette.muted}" font-size="10" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700">${label}</text>`;
+      const y = grid.y + index * step + 18;
+      return `<text x="26" y="${y}" fill="${p.muted}" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700">${label}</text>`;
     })
     .join('\n');
 }
 
-function renderTitleBar(stats, palette) {
+function renderTitleBar(stats, p) {
   return `
     <g>
-      <rect x="26" y="20" width="1308" height="56" rx="18" fill="${palette.panel}" stroke="${palette.panelLine}" stroke-width="1.1" />
-      <text x="46" y="52" fill="${palette.text}" font-size="20" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="900" letter-spacing="2">GALAGA CONTRIBUTION FLEET</text>
-      <text x="378" y="51" fill="${palette.muted}" font-size="11.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.2">${escapeXml(formatNumber.format(data.totalContributions || 0))} TOTAL CONTRIBUTIONS</text>
-      <text x="735" y="51" fill="${palette.muted}" font-size="11.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.2">${escapeXml(formatNumber.format(stats.activeDays))} ACTIVE DAYS</text>
-      <text x="1030" y="51" fill="${palette.muted}" font-size="11.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.2">STREAK ${escapeXml(formatNumber.format(stats.currentStreak))} / BEST ${escapeXml(formatNumber.format(stats.bestStreak))}</text>
+      <rect x="34" y="24" width="1992" height="72" rx="20" fill="${p.panel}" stroke="${p.panelLine}" stroke-width="1.1" />
+      <text x="60" y="60" fill="${p.text}" font-size="23" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="900" letter-spacing="2.6">GALAGA CONTRIBUTION FLEET</text>
+      <text x="474" y="59" fill="${p.muted}" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.2">${escapeXml(formatNumber.format(data.totalContributions || 0))} TOTAL CONTRIBUTIONS</text>
+      <text x="938" y="59" fill="${p.muted}" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.2">${escapeXml(formatNumber.format(stats.activeDays))} ACTIVE DAYS</text>
+      <text x="1452" y="59" fill="${p.muted}" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.2">STREAK ${escapeXml(formatNumber.format(stats.currentStreak))} / BEST ${escapeXml(formatNumber.format(stats.bestStreak))}</text>
     </g>`;
 }
 
-function renderFooter(stats, palette) {
+function renderFooter(stats, p) {
   const score = stats.bestStreak * 100 + stats.currentStreak * 20 + stats.activeDays;
   return `
     <g>
-      <rect x="26" y="312" width="1308" height="26" rx="13" fill="${palette.strip}" stroke="${palette.panelLine}" stroke-width="1" />
-      <text x="46" y="329" fill="${palette.text}" font-size="11.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="800" letter-spacing="1.2">POWER LEVEL ${escapeXml(formatNumber.format(Math.max(stats.currentStreak, stats.bestStreak)))}</text>
-      <text x="318" y="329" fill="${palette.muted}" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.1">WAVE ${escapeXml(formatNumber.format(stats.activeDays))}</text>
-      <text x="500" y="329" fill="${palette.muted}" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.1">GALAGA MODE ENABLED</text>
-      <text x="1122" y="329" fill="${palette.muted}" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.1">SCORE ${escapeXml(formatNumber.format(score))}</text>
+      <rect x="34" y="580" width="1992" height="30" rx="15" fill="${p.strip}" stroke="${p.panelLine}" stroke-width="1" />
+      <text x="58" y="600" fill="${p.text}" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="800" letter-spacing="1.2">POWER LEVEL ${escapeXml(formatNumber.format(Math.max(stats.currentStreak, stats.bestStreak)))}</text>
+      <text x="430" y="600" fill="${p.muted}" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.1">WAVE ${escapeXml(formatNumber.format(stats.activeDays))}</text>
+      <text x="680" y="600" fill="${p.muted}" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.1">GALAGA MODE ENABLED</text>
+      <text x="1848" y="600" fill="${p.muted}" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.1">SCORE ${escapeXml(formatNumber.format(score))}</text>
     </g>`;
 }
 
-function renderPlayer(palette) {
+function renderShip(p, stats) {
+  const playfieldWidth = width - 2 * grid.x;
+  const points = [];
+  const yBase = 530;
+  for (let waveIndex = 0; waveIndex < waveCount; waveIndex += 1) {
+    const x = grid.x + playfieldWidth * ((waveIndex + 0.5) / waveCount);
+    const y = yBase + (waveIndex % 2 === 0 ? 0 : -22);
+    points.push(`${x.toFixed(0)},${y.toFixed(0)}`);
+  }
+  points.push(points[0]);
+
+  const keyTimes = Array.from({ length: points.length }, (_, index) =>
+    (index / (points.length - 1)).toFixed(3),
+  ).join(';');
+
+  const shipDuration = `${cycleSeconds}s`;
+
   return `
-    <g transform="translate(1120,252)">
-      <g>
-        <animateTransform attributeName="transform" type="translate" values="0,0; -36,0; 36,0; 0,0" dur="7.5s" repeatCount="indefinite" />
-        <animate attributeName="opacity" values="1;0.88;1" dur="2.2s" repeatCount="indefinite" />
-        ${drawMatrix(0, 0, alienSprites.player, palette.ship, 1)}
+    <g>
+      <animateTransform attributeName="transform" type="translate" values="${points.join('; ')}" keyTimes="${keyTimes}" dur="${shipDuration}" repeatCount="indefinite" />
+      <g filter="url(#shipGlow)">
+        <g>
+          <animateTransform attributeName="transform" type="rotate" values="-2; 2; -2" dur="2.2s" repeatCount="indefinite" />
+          <g transform="translate(-28,-16) scale(3.2)">
+            ${drawMatrix(0, 0, alienSprites.player, p.ship, 1)}
+            <polygon points="6,16 10,8 14,16" fill="${p.shipGlow}" opacity="0.8" />
+            <rect x="4" y="15" width="8" height="4" rx="2" fill="${p.text}" opacity="0.55" />
+            <rect x="5" y="18" width="6" height="4" rx="1.5" fill="${p.shipGlow}" opacity="0.5" />
+          </g>
+          <circle cx="0" cy="10" r="5" fill="${p.shipGlow}" opacity="0">
+            <animate attributeName="opacity" values="0;0;0.95;0.2;0" keyTimes="0;0.04;0.08;0.14;1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+            <animate attributeName="r" values="1;1;8;18;1" keyTimes="0;0.04;0.08;0.14;1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+          </circle>
+          <g transform="translate(0, 22)">
+            <rect x="-2.5" y="0" width="5" height="126" rx="2.5" fill="${p.laser}" opacity="0">
+              <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.03;0.06;0.1;0.14;1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+              <animate attributeName="height" values="0;0;126;146;0;0" keyTimes="0;0.03;0.06;0.1;0.14;1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+              <animate attributeName="y" values="0;0;-126;-146;0;0" keyTimes="0;0.03;0.06;0.1;0.14;1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+            </rect>
+            <rect x="-10" y="-2" width="20" height="12" rx="6" fill="${p.laser}" opacity="0.18">
+              <animate attributeName="opacity" values="0;0;0.4;0.24;0" keyTimes="0;0.03;0.06;0.1;0.16;1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+            </rect>
+          </g>
+        </g>
       </g>
-      <rect x="6" y="18" width="4" height="44" rx="2" fill="${palette.shipGlow}" opacity="0.85">
-        <animate attributeName="height" values="10;58;10" dur="1.35s" repeatCount="indefinite" />
-        <animate attributeName="y" values="20; -14; 20" dur="1.35s" repeatCount="indefinite" />
-        <animate attributeName="opacity" values="0.35;0.95;0.35" dur="1.35s" repeatCount="indefinite" />
-      </rect>
     </g>`;
 }
 
-function renderEnemySquad(palette) {
-  const drones = [];
-  for (let i = 0; i < 6; i += 1) {
-    const x = 980 + i * 46;
-    const y = 150 + (i % 2) * 10;
-    drones.push(`
-      <g transform="translate(${x},${y})">
-        <animateTransform attributeName="transform" type="translate" values="${x},${y}; ${x - 18},${y - 6}; ${x},${y}; ${x + 18},${y - 6}; ${x},${y}" dur="${5 + i * 0.4}s" repeatCount="indefinite" />
-        ${drawMatrix(0, 0, alienSprites.wing, palette.active[(i % palette.active.length)], 1)}
+function renderBeams(p) {
+  const playfieldWidth = width - 2 * grid.x;
+  const beams = [];
+  for (let waveIndex = 0; waveIndex < waveCount; waveIndex += 1) {
+    const x = grid.x + playfieldWidth * ((waveIndex + 0.5) / waveCount);
+    const start = waveStart(waveIndex);
+    const hit = waveHit(waveIndex);
+    const end = waveEnd(waveIndex);
+    const top = 132;
+    const beamHeight = 336;
+    beams.push(`
+      <g>
+        <rect x="${(x - 10).toFixed(1)}" y="${top}" width="20" height="${beamHeight}" rx="8" fill="${p.laser}" opacity="0">
+          <animate attributeName="opacity" values="0;0;0.12;0.95;0.18;0;0" keyTimes="0;${start.toFixed(3)};${Math.max(start + 0.015, hit - 0.02).toFixed(3)};${hit.toFixed(3)};${end.toFixed(3)};${Math.min(0.99, end + 0.08).toFixed(3)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+          <animateTransform attributeName="transform" type="scale" values="0.55,0.2; 1,1; 1.3,1; 0.65,0.2" keyTimes="0;0.15;0.5;1" dur="0.38s" begin="${hit.toFixed(3)}s" repeatCount="indefinite" />
+        </rect>
+        <rect x="${(x - 4).toFixed(1)}" y="${top}" width="8" height="${beamHeight}" rx="4" fill="#ffffff" opacity="0">
+          <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;${start.toFixed(3)};${hit.toFixed(3)};${end.toFixed(3)};${Math.min(0.99, end + 0.08).toFixed(3)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+          <animate attributeName="height" values="0;0;336;358;0;0" keyTimes="0;${start.toFixed(3)};${hit.toFixed(3)};${end.toFixed(3)};${Math.min(0.99, end + 0.08).toFixed(3)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+          <animate attributeName="y" values="${(top + beamHeight).toFixed(0)};${(top + beamHeight).toFixed(0)};${top};${(top - 14).toFixed(0)};${(top + beamHeight).toFixed(0)};${(top + beamHeight).toFixed(0)}" keyTimes="0;${start.toFixed(3)};${hit.toFixed(3)};${end.toFixed(3)};${Math.min(0.99, end + 0.08).toFixed(3)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+        </rect>
+        <circle cx="${x.toFixed(1)}" cy="${top - 8}" r="5" fill="${p.explosion}" opacity="0">
+          <animate attributeName="opacity" values="0;0;1;0.2;0" keyTimes="0;${start.toFixed(3)};${hit.toFixed(3)};${Math.min(0.99, hit + 0.04).toFixed(3)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+          <animate attributeName="r" values="0;0;7;14;0" keyTimes="0;${start.toFixed(3)};${hit.toFixed(3)};${Math.min(0.99, hit + 0.04).toFixed(3)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+        </circle>
       </g>`);
   }
-  return drones.join('\n');
+  return beams.join('\n');
 }
 
-function renderFleet(weeks, palette) {
-  const left = grid.x;
-  const top = grid.y;
-  const columns = weeks.length;
-  const fleetWidth = columns * step;
-  const fleetHeight = rows * step;
-
+function renderFleet(weeks, p) {
   const cells = weeks
     .map((week, weekIndex) =>
       week.contributionDays
         .map((day, rowIndex) => {
-          const x = left + weekIndex * step;
-          const y = top + rowIndex * step;
-          return renderAlienCell(day, x, y, palette, weekIndex, rowIndex);
+          const x = grid.x + weekIndex * step;
+          const y = grid.y + rowIndex * step;
+          return renderCell(day, x, y, p, weekIndex, weeks.length, rowIndex);
         })
         .join('\n'),
     )
@@ -350,44 +417,75 @@ function renderFleet(weeks, palette) {
 
   return `
     <g>
-      <rect x="${left - 10}" y="${top - 10}" width="${fleetWidth + 20}" height="${fleetHeight + 20}" rx="22" fill="rgba(8, 14, 28, 0.42)" stroke="${palette.line}" stroke-width="1" />
-      <g>
-        <animateTransform attributeName="transform" type="translate" values="0,0; 10,-2; 0,0; -10,2; 0,0" dur="9s" repeatCount="indefinite" />
-        ${cells}
-      </g>
+      <rect x="${grid.x - 14}" y="${grid.y - 14}" width="${weeks.length * step + 28}" height="${rows * step + 28}" rx="26" fill="rgba(8, 14, 28, 0.42)" stroke="${p.line}" stroke-width="1" />
+      <rect x="${grid.x - 4}" y="${grid.y - 4}" width="${weeks.length * step + 8}" height="${rows * step + 8}" rx="20" fill="none" stroke="${p.grid}" stroke-width="1" />
+      ${cells}
     </g>`;
 }
 
 function renderSvg(dark) {
-  const palette = getPalette(dark);
+  const p = palette(dark);
   const stats = computeStats(data.weeks);
   const markers = monthMarkers(data.weeks);
-  const starfield = buildStarfield(dark ? 920 : 420, dark ? 96 : 82, palette, true);
+  const starfield = buildStarfield(dark ? 1200 : 520, dark ? 132 : 110, p);
+  const gridWidth = data.weeks.length * step;
+  const horizon = grid.y - 18;
 
   const monthLabels = markers
-    .map((marker) => `<text x="${marker.x}" y="${grid.y - 14}" fill="${palette.muted}" font-size="10.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.1">${marker.label}</text>`)
+    .map((marker) => `<text x="${marker.x}" y="${grid.y - 20}" fill="${p.muted}" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.1">${marker.label}</text>`)
     .join('\n');
 
-  const scanlines = Array.from({ length: 18 }, (_, index) => {
-    const y = 86 + index * 12;
-    return `<rect x="0" y="${y}" width="1360" height="2" fill="#ffffff" opacity="${index % 2 === 0 ? '0.04' : '0.02'}" />`;
+  const scanlines = Array.from({ length: 28 }, (_, index) => {
+    const y = 114 + index * 17;
+    return `<rect x="0" y="${y}" width="${width}" height="2" fill="#ffffff" opacity="${index % 2 === 0 ? '0.045' : '0.022'}" />`;
   }).join('\n');
+
+  const edgeFog = `
+    <ellipse cx="${width / 2}" cy="112" rx="${width * 0.42}" ry="28" fill="url(#frame)" opacity="0.12" filter="url(#softGlow)" />
+    <ellipse cx="${width / 2}" cy="540" rx="${width * 0.42}" ry="26" fill="url(#frame)" opacity="0.09" filter="url(#softGlow)" />
+  `;
+
+  const resetPulse = `
+    <g opacity="0">
+      <animate attributeName="opacity" values="0;0;0.85;0" keyTimes="0;0.945;0.985;1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+      <ellipse cx="${grid.x + gridWidth / 2}" cy="${grid.y + rows * step / 2}" rx="${gridWidth * 0.26}" ry="${rows * step * 0.64}" fill="none" stroke="url(#frame)" stroke-width="4" filter="url(#glow)" />
+      <ellipse cx="${grid.x + gridWidth / 2}" cy="${grid.y + rows * step / 2}" rx="${gridWidth * 0.19}" ry="${rows * step * 0.42}" fill="none" stroke="${p.text}" stroke-width="1.4" opacity="0.6" />
+    </g>`;
+
+  const cells = renderFleet(data.weeks, p);
+  const beams = renderBeams(p);
+  const ship = renderShip(p, stats);
+
+  const cellGlowDefs = data.weeks
+    .flatMap((week, weekIndex) =>
+      week.contributionDays.map((day, rowIndex) => {
+        const level = Math.max(0, Math.min(4, day.contributionCount));
+        const color = level === 0 ? p.cell0 : p.active[level];
+        const id = `cell-glow-${weekIndex}-${rowIndex}`;
+        return `
+    <radialGradient id="${id}" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="${level === 0 ? p.cellBorder : color}" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="${level === 0 ? p.cellBorder : color}" stop-opacity="0" />
+    </radialGradient>`;
+      }),
+    )
+    .join('\n');
 
   return `
 <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animated Galaga style contribution graph">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="${palette.skyA}" />
-      <stop offset="100%" stop-color="${palette.skyB}" />
+      <stop offset="0%" stop-color="${p.skyA}" />
+      <stop offset="100%" stop-color="${p.skyB}" />
     </linearGradient>
     <linearGradient id="frame" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="${palette.glowA}" />
-      <stop offset="45%" stop-color="${palette.glowB}" />
-      <stop offset="100%" stop-color="${palette.glowA}" />
+      <stop offset="0%" stop-color="${p.glowA}" />
+      <stop offset="45%" stop-color="${p.glowB}" />
+      <stop offset="100%" stop-color="${p.glowA}" />
     </linearGradient>
     <linearGradient id="playfield" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="${palette.playfieldTop}" stop-opacity="0.94" />
-      <stop offset="100%" stop-color="${palette.playfieldBottom}" stop-opacity="0.94" />
+      <stop offset="0%" stop-color="${p.playfieldTop}" stop-opacity="0.96" />
+      <stop offset="100%" stop-color="${p.playfieldBottom}" stop-opacity="0.96" />
     </linearGradient>
     <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
       <feGaussianBlur stdDeviation="3" result="blur" />
@@ -403,22 +501,32 @@ function renderSvg(dark) {
         <feMergeNode in="SourceGraphic" />
       </feMerge>
     </filter>
+    <filter id="shipGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="2.5" result="blur" />
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 0.3 0 1 0 0 0.95 0 0 1 0 1 0 0 0 1 0" result="glow" />
+      <feMerge>
+        <feMergeNode in="glow" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    ${cellGlowDefs}
   </defs>
   <rect width="100%" height="100%" fill="url(#bg)" />
-  <rect x="18" y="18" width="1324" height="324" rx="30" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1" />
-  <rect x="22" y="22" width="1316" height="316" rx="28" fill="none" stroke="${palette.line}" stroke-width="10" opacity="0.8" />
-  <rect x="22" y="22" width="1316" height="316" rx="28" fill="none" stroke="url(#frame)" stroke-width="2.4" filter="url(#glow)" />
-  <rect x="32" y="92" width="1296" height="200" rx="24" fill="url(#playfield)" stroke="${palette.line}" stroke-width="1" />
+  <rect x="18" y="18" width="${width - 36}" height="${height - 36}" rx="32" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1" />
+  <rect x="22" y="22" width="${width - 44}" height="${height - 44}" rx="30" fill="none" stroke="${p.line}" stroke-width="10" opacity="0.8" />
+  <rect x="22" y="22" width="${width - 44}" height="${height - 44}" rx="30" fill="none" stroke="url(#frame)" stroke-width="2.4" filter="url(#glow)" />
+  <rect x="34" y="110" width="${width - 68}" height="470" rx="24" fill="url(#playfield)" stroke="${p.line}" stroke-width="1" />
+  ${edgeFog}
   ${starfield}
   ${scanlines}
-  <rect x="34" y="104" width="1292" height="176" rx="20" fill="none" stroke="${palette.grid}" stroke-width="1" />
-  ${renderTitleBar(stats, palette)}
+  ${renderTitleBar(stats, p)}
   ${monthLabels}
-  ${weekdayLabels(palette)}
-  ${renderFleet(data.weeks, palette)}
-  ${renderEnemySquad(palette)}
-  ${renderPlayer(palette)}
-  ${renderFooter(stats, palette)}
+  ${weekdayLabels(p)}
+  ${resetPulse}
+  ${cells}
+  ${beams}
+  ${ship}
+  ${renderFooter(stats, p)}
 </svg>
 `.trimStart();
 }
