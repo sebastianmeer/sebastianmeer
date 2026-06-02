@@ -65,6 +65,9 @@ jobs:
       - name: Render Galaga SVGs
         run: node scripts/generate-galaga-svg.mjs
 
+      - name: Remove temp data
+        run: rm -f dist/galaga-data.json
+
       - name: Push SVGs to output branch
         uses: crazy-max/ghaction-github-pages@v3.1.0
         with:
