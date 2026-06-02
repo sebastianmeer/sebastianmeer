@@ -214,6 +214,52 @@ function summarizeWaves(weeks) {
   return summaries;
 }
 
+function buildTargets(weeks) {
+  const targets = [];
+  weeks.forEach((week, weekIndex) => {
+    week.contributionDays.forEach((day, rowIndex) => {
+      const contributionCount = Math.max(0, day.contributionCount || 0);
+      if (contributionCount === 0) return;
+      targets.push({
+        weekIndex,
+        rowIndex,
+        contributionCount,
+        level: Math.max(1, Math.min(4, contributionCount)),
+        x: grid.x + weekIndex * step + grid.cell / 2,
+        y: grid.y + rowIndex * step + grid.cell / 2,
+      });
+    });
+  });
+  return targets;
+}
+
+function buildTargetSchedule(targets) {
+  if (targets.length === 0) {
+    return [];
+  }
+
+  const resetWindow = 0.06;
+  const available = 1 - resetWindow;
+  const totalWeight = targets.reduce(
+    (sum, target) => sum + 1.4 + target.contributionCount * 0.62,
+    0,
+  );
+  let cursor = 0;
+
+  return targets.map((target) => {
+    const span = available * ((1.4 + target.contributionCount * 0.62) / totalWeight);
+    const move = Math.min(span * 0.32, 0.018);
+    const entry = {
+      ...target,
+      start: cursor,
+      arrive: cursor + move,
+      end: cursor + span,
+    };
+    cursor += span;
+    return entry;
+  });
+}
+
 function waveStart(waveIndex) {
   return waveIndex / waveCount;
 }
@@ -316,8 +362,8 @@ function monthMarkers(weeks) {
 function weekdayLabels(p) {
   return ['S', 'M', 'T', 'W', 'T', 'F', 'S']
     .map((label, index) => {
-      const y = grid.y + index * step + 18;
-      return `<text x="26" y="${y}" fill="${p.muted}" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700">${label}</text>`;
+      const y = grid.y + index * step + 23;
+      return `<text x="30" y="${y}" fill="${p.muted}" font-size="15" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="800">${label}</text>`;
     })
     .join('\n');
 }
@@ -345,26 +391,40 @@ function renderFooter(stats, p) {
     </g>`;
 }
 
-function renderShip(p, stats) {
-  const playfieldWidth = width - 2 * grid.x;
-  const points = [];
+function renderShip(p, schedule) {
   const yBase = 628;
-  for (let waveIndex = 0; waveIndex < waveCount; waveIndex += 1) {
-    const x = grid.x + playfieldWidth * ((waveIndex + 0.5) / waveCount);
-    const y = yBase + (waveIndex % 2 === 0 ? 0 : -18);
-    points.push(`${x.toFixed(0)},${y.toFixed(0)}`);
-  }
-  points.push(points[0]);
+  const fallbackX = width / 2;
+  const values = [];
+  const keyTimes = [];
 
-  const keyTimes = Array.from({ length: points.length }, (_, index) =>
-    (index / (points.length - 1)).toFixed(3),
-  ).join(';');
+  if (schedule.length === 0) {
+    values.push(`${fallbackX.toFixed(1)},${yBase}`);
+    keyTimes.push('0');
+  } else {
+    schedule.forEach((target, index) => {
+      const previous = schedule[index - 1];
+      if (index === 0) {
+        values.push(`${target.x.toFixed(1)},${yBase}`);
+        keyTimes.push('0');
+      } else if (previous && target.arrive > previous.end) {
+        values.push(`${previous.x.toFixed(1)},${yBase}`);
+        keyTimes.push(previous.end.toFixed(4));
+      }
+      values.push(`${target.x.toFixed(1)},${yBase}`);
+      keyTimes.push(target.arrive.toFixed(4));
+      values.push(`${target.x.toFixed(1)},${yBase}`);
+      keyTimes.push(target.end.toFixed(4));
+    });
+  }
+
+  values.push(`${(schedule[0]?.x || fallbackX).toFixed(1)},${yBase}`);
+  keyTimes.push('1');
 
   const shipDuration = `${cycleSeconds}s`;
 
   return `
     <g>
-      <animateTransform attributeName="transform" type="translate" values="${points.join('; ')}" keyTimes="${keyTimes}" dur="${shipDuration}" repeatCount="indefinite" />
+      <animateTransform attributeName="transform" type="translate" values="${values.join('; ')}" keyTimes="${keyTimes.join(';')}" dur="${shipDuration}" repeatCount="indefinite" />
       <g filter="url(#shipGlow)">
         <g>
           <animateTransform attributeName="transform" type="rotate" values="-2; 2; -2" dur="2.2s" repeatCount="indefinite" />
@@ -383,34 +443,31 @@ function renderShip(p, stats) {
     </g>`;
 }
 
-function renderShipFire(p, waves) {
-  const playfieldWidth = width - 2 * grid.x;
+function renderShipFire(p, schedule) {
   const shots = [];
-  for (let waveIndex = 0; waveIndex < waveCount; waveIndex += 1) {
-    const x = grid.x + playfieldWidth * ((waveIndex + 0.5) / waveCount);
-    const start = waveStart(waveIndex);
-    const level = waves[waveIndex]?.level ?? 0;
-    if (level <= 0) continue;
-
-    const shotCount = Math.max(1, Math.min(4, level));
+  for (const target of schedule) {
     const shipY = 628;
-    const shotDuration = level >= 3 ? 0.64 : 0.76;
-    const shotColor = p.active[level] || p.laser;
-    const spreadBase = level >= 3 ? 15 : 10;
-    const shotRadius = 2.6 + level * 0.45;
+    const shotCount = target.contributionCount;
+    const shotColor = p.active[target.level] || p.laser;
+    const shotRadius = 2.2 + target.level * 0.48;
+    const usableSpan = Math.max(0.01, target.end - target.arrive);
+    const shotSpacing = usableSpan / (shotCount + 1);
 
     for (let shotIndex = 0; shotIndex < shotCount; shotIndex += 1) {
-      const delay = (start + shotIndex * 0.09).toFixed(3);
-      const offset = shotCount === 1 ? 0 : (shotIndex - (shotCount - 1) / 2) * 10;
-      const curve = shotIndex % 2 === 0 ? -spreadBase : spreadBase;
-      const shotDistance = shotIndex === 0 ? 388 : 408;
+      const fireAt = target.arrive + shotSpacing * (shotIndex + 1);
+      const preFire = Math.max(0.0001, fireAt - 0.006);
+      const hitAt = Math.min(0.995, fireAt + 0.045);
+      const fadeAt = Math.min(0.998, fireAt + 0.064);
+      const offset = shotCount === 1 ? 0 : ((shotIndex % 3) - 1) * 4;
+      const shotDistance = Math.max(80, shipY - target.y + 8);
+      const bulletHeight = 14 + Math.min(18, target.level * 3);
       shots.push(`
-        <g transform="translate(${(x + offset).toFixed(1)},${shipY})" opacity="0">
-          <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.03;0.08;0.14;0.18;1" dur="${cycleSeconds}s" begin="${delay}s" repeatCount="indefinite" />
-          <animateMotion path="M 0 0 C ${curve} -74, ${curve * 1.1} -178, 0 -${shotDistance}" dur="${shotDuration}s" begin="${delay}s" repeatCount="indefinite" />
+        <g transform="translate(${(target.x + offset).toFixed(1)},${shipY})" opacity="0">
+          <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;${preFire.toFixed(4)};${fireAt.toFixed(4)};${hitAt.toFixed(4)};${fadeAt.toFixed(4)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+          <animateTransform attributeName="transform" type="translate" values="0,0;0,0;0,-${shotDistance.toFixed(1)};0,-${shotDistance.toFixed(1)}" keyTimes="0;${fireAt.toFixed(4)};${hitAt.toFixed(4)};1" dur="${cycleSeconds}s" repeatCount="indefinite" additive="sum" />
           <circle cx="0" cy="0" r="${shotRadius.toFixed(1)}" fill="${shotColor}" opacity="0.98" />
           <circle cx="0" cy="0" r="${(shotRadius + 3.8).toFixed(1)}" fill="none" stroke="${shotColor}" stroke-width="1.6" opacity="0.75" />
-          <rect x="${(-shotRadius / 2).toFixed(1)}" y="${shotRadius.toFixed(1)}" width="${shotRadius.toFixed(1)}" height="${(shotRadius * 6).toFixed(1)}" rx="${(shotRadius / 2).toFixed(1)}" fill="${shotColor}" opacity="0.42" />
+          <rect x="-1.5" y="${shotRadius.toFixed(1)}" width="3" height="${bulletHeight}" rx="1.5" fill="${shotColor}" opacity="0.58" />
         </g>`);
     }
   }
@@ -475,12 +532,12 @@ function renderSvg(dark) {
   const stats = computeStats(data.weeks);
   const markers = monthMarkers(data.weeks);
   const waves = summarizeWaves(data.weeks);
+  const targets = buildTargets(data.weeks);
+  const targetSchedule = buildTargetSchedule(targets);
   const starfield = buildStarfield(dark ? 1200 : 520, dark ? 132 : 110, p);
-  const gridWidth = data.weeks.length * step;
-  const horizon = grid.y - 18;
 
   const monthLabels = markers
-    .map((marker) => `<text x="${marker.x}" y="${grid.y - 20}" fill="${p.muted}" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.1">${marker.label}</text>`)
+    .map((marker) => `<text x="${marker.x}" y="${grid.y - 22}" fill="${p.muted}" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="800" letter-spacing="1.1">${marker.label}</text>`)
     .join('\n');
 
   const scanlines = Array.from({ length: 30 }, (_, index) => {
@@ -493,17 +550,10 @@ function renderSvg(dark) {
     <ellipse cx="${width / 2}" cy="${height - 108}" rx="${width * 0.42}" ry="28" fill="url(#frame)" opacity="0.09" filter="url(#softGlow)" />
   `;
 
-  const resetPulse = `
-    <g opacity="0">
-      <animate attributeName="opacity" values="0;0;0.85;0" keyTimes="0;0.945;0.985;1" dur="${cycleSeconds}s" repeatCount="indefinite" />
-      <ellipse cx="${grid.x + gridWidth / 2}" cy="${grid.y + rows * step / 2}" rx="${gridWidth * 0.26}" ry="${rows * step * 0.64}" fill="none" stroke="url(#frame)" stroke-width="4" filter="url(#glow)" />
-      <ellipse cx="${grid.x + gridWidth / 2}" cy="${grid.y + rows * step / 2}" rx="${gridWidth * 0.19}" ry="${rows * step * 0.42}" fill="none" stroke="${p.text}" stroke-width="1.4" opacity="0.6" />
-    </g>`;
-
   const cells = renderFleet(data.weeks, p);
-  const bursts = renderShipFire(p, waves);
+  const bursts = renderShipFire(p, targetSchedule);
   const dives = renderDiveSquads(p, waves);
-  const ship = renderShip(p, stats);
+  const ship = renderShip(p, targetSchedule);
 
   const cellGlowDefs = data.weeks
     .flatMap((week, weekIndex) =>
@@ -571,7 +621,6 @@ function renderSvg(dark) {
   ${renderTitleBar(stats, p)}
   ${monthLabels}
   ${weekdayLabels(p)}
-  ${resetPulse}
   ${dives}
   ${cells}
   ${ship}
