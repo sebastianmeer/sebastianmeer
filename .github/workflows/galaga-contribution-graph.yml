@@ -15,11 +15,55 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Generate Galaga contribution graph
-        uses: abozanona/pacman-contribution-graph@main
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Collect contribution data
+        uses: actions/github-script@v7
         with:
-          github_user_name: ${{ github.repository_owner }}
-          games: "galaga"
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+
+            const query = `
+              query($login: String!) {
+                user(login: $login) {
+                  contributionsCollection {
+                    contributionCalendar {
+                      totalContributions
+                      weeks {
+                        contributionDays {
+                          date
+                          contributionCount
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const data = await github.graphql(query, {
+              login: context.repo.owner,
+            });
+
+            const calendar = data.user.contributionsCollection.contributionCalendar;
+            const outputPath = path.join(process.cwd(), 'dist', 'galaga-data.json');
+            fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+            fs.writeFileSync(
+              outputPath,
+              JSON.stringify(
+                {
+                  totalContributions: calendar.totalContributions,
+                  weeks: calendar.weeks,
+                },
+                null,
+                2
+              )
+            );
+
+      - name: Render Galaga SVGs
+        run: node scripts/generate-galaga-svg.mjs
 
       - name: Push SVGs to output branch
         uses: crazy-max/ghaction-github-pages@v3.1.0
