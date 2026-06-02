@@ -14,12 +14,12 @@ const rows = 7;
 const grid = {
   x: 88,
   y: 212,
-  cell: 28,
-  gap: 5,
+  cell: 30,
+  gap: 4,
 };
 
 const step = grid.cell + grid.gap;
-const pixel = 2;
+const pixel = 3;
 const sprite = 16;
 
 const alienSprites = {
@@ -347,7 +347,7 @@ function renderShip(p, stats) {
       <g filter="url(#shipGlow)">
         <g>
           <animateTransform attributeName="transform" type="rotate" values="-2; 2; -2" dur="2.2s" repeatCount="indefinite" />
-          <g transform="translate(-28,-16) scale(3.2)">
+          <g transform="translate(-34,-20) scale(4)">
             ${drawMatrix(0, 0, alienSprites.player, p.ship, 1)}
             <polygon points="6,16 10,8 14,16" fill="${p.shipGlow}" opacity="0.8" />
             <rect x="4" y="15" width="8" height="4" rx="2" fill="${p.text}" opacity="0.55" />
@@ -372,34 +372,63 @@ function renderShip(p, stats) {
     </g>`;
 }
 
-function renderBeams(p) {
+function renderBurstShots(p) {
   const playfieldWidth = width - 2 * grid.x;
-  const beams = [];
+  const shots = [];
   for (let waveIndex = 0; waveIndex < waveCount; waveIndex += 1) {
     const x = grid.x + playfieldWidth * ((waveIndex + 0.5) / waveCount);
     const start = waveStart(waveIndex);
     const hit = waveHit(waveIndex);
     const end = waveEnd(waveIndex);
-    const top = 132;
-    const beamHeight = 336;
-    beams.push(`
-      <g>
-        <rect x="${(x - 10).toFixed(1)}" y="${top}" width="20" height="${beamHeight}" rx="8" fill="${p.laser}" opacity="0">
-          <animate attributeName="opacity" values="0;0;0.12;0.95;0.18;0;0" keyTimes="0;${start.toFixed(3)};${Math.max(start + 0.015, hit - 0.02).toFixed(3)};${hit.toFixed(3)};${end.toFixed(3)};${Math.min(0.99, end + 0.08).toFixed(3)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />
-          <animateTransform attributeName="transform" type="scale" values="0.55,0.2; 1,1; 1.3,1; 0.65,0.2" keyTimes="0;0.15;0.5;1" dur="0.38s" begin="${hit.toFixed(3)}s" repeatCount="indefinite" />
-        </rect>
-        <rect x="${(x - 4).toFixed(1)}" y="${top}" width="8" height="${beamHeight}" rx="4" fill="#ffffff" opacity="0">
-          <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;${start.toFixed(3)};${hit.toFixed(3)};${end.toFixed(3)};${Math.min(0.99, end + 0.08).toFixed(3)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />
-          <animate attributeName="height" values="0;0;336;358;0;0" keyTimes="0;${start.toFixed(3)};${hit.toFixed(3)};${end.toFixed(3)};${Math.min(0.99, end + 0.08).toFixed(3)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />
-          <animate attributeName="y" values="${(top + beamHeight).toFixed(0)};${(top + beamHeight).toFixed(0)};${top};${(top - 14).toFixed(0)};${(top + beamHeight).toFixed(0)};${(top + beamHeight).toFixed(0)}" keyTimes="0;${start.toFixed(3)};${hit.toFixed(3)};${end.toFixed(3)};${Math.min(0.99, end + 0.08).toFixed(3)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />
-        </rect>
-        <circle cx="${x.toFixed(1)}" cy="${top - 8}" r="5" fill="${p.explosion}" opacity="0">
-          <animate attributeName="opacity" values="0;0;1;0.2;0" keyTimes="0;${start.toFixed(3)};${hit.toFixed(3)};${Math.min(0.99, hit + 0.04).toFixed(3)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />
-          <animate attributeName="r" values="0;0;7;14;0" keyTimes="0;${start.toFixed(3)};${hit.toFixed(3)};${Math.min(0.99, hit + 0.04).toFixed(3)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+    const shipY = 548;
+    const volleyOffsets = [
+      { dx: -18, dy: 0, delay: 0.0 },
+      { dx: 0, dy: 0, delay: 0.08 },
+      { dx: 18, dy: 0, delay: 0.16 },
+    ];
+    for (const [shotIndex, volley] of volleyOffsets.entries()) {
+      const begin = (start + volley.delay).toFixed(3);
+      const spread = shotIndex === 1 ? 0 : shotIndex === 0 ? -12 : 12;
+      const arcHeight = shotIndex === 1 ? 360 : 330;
+      shots.push(`
+        <g transform="translate(${x + volley.dx},${shipY + volley.dy})" opacity="0">
+          <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;0.03;0.08;0.14;0.18;1" dur="${cycleSeconds}s" begin="${begin}s" repeatCount="indefinite" />
+          <animateMotion path="M 0 0 C ${spread} -80, ${spread * 1.2} -${Math.round(arcHeight * 0.5)}, 0 -${arcHeight}" dur="0.82s" begin="${begin}s" repeatCount="indefinite" />
+          <circle cx="0" cy="0" r="4.2" fill="${p.shipGlow}" opacity="0.95" />
+          <circle cx="0" cy="0" r="7" fill="none" stroke="${p.laser}" stroke-width="1.8" opacity="0.8" />
+          <rect x="-1.5" y="4" width="3" height="24" rx="1.5" fill="${p.laser}" opacity="0.55" />
+        </g>`);
+    }
+  }
+  return shots.join('\n');
+}
+
+function renderDiveSquads(p) {
+  const squads = [];
+  const formationY = grid.y - 22;
+  const diveY = 460;
+  for (let waveIndex = 0; waveIndex < waveCount; waveIndex += 1) {
+    const start = waveStart(waveIndex);
+    const laneX = waveCenterX(waveIndex);
+    const sway = waveIndex % 2 === 0 ? 92 : -92;
+    const returnX = waveCenterX((waveIndex + 2) % waveCount);
+    const type = waveIndex % 3 === 0 ? 'ace' : waveIndex % 3 === 1 ? 'wing' : 'drone';
+    const delay = (waveIndex * 0.04).toFixed(2);
+
+    squads.push(`
+      <g opacity="0">
+        <animate attributeName="opacity" values="0;0;1;1;0;0" keyTimes="0;${start.toFixed(3)};${Math.min(0.96, start + 0.03).toFixed(3)};${Math.min(0.99, start + 0.2).toFixed(3)};${Math.min(0.99, start + 0.24).toFixed(3)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+        <animateMotion path="M ${laneX.toFixed(1)} ${formationY} C ${(laneX + sway).toFixed(1)} ${formationY + 36}, ${(laneX + sway * 0.8).toFixed(1)} ${diveY - 180}, ${returnX.toFixed(1)} ${diveY} C ${(returnX - sway * 0.6).toFixed(1)} ${diveY + 96}, ${(laneX - sway * 0.4).toFixed(1)} ${formationY + 42}, ${laneX.toFixed(1)} ${formationY}" dur="${(cycleSeconds * 0.58).toFixed(1)}s" begin="${(start + 0.02).toFixed(3)}s" repeatCount="indefinite" />
+        <g transform="translate(-12,-12) scale(2.4)">
+          ${drawMatrix(0, 0, alienSprites[type], p.active[(waveIndex % p.active.length)], 1)}
+        </g>
+        <circle cx="0" cy="0" r="10" fill="${p.shipGlow}" opacity="0.07">
+          <animate attributeName="r" values="8;14;8" dur="1.8s" begin="${delay}s" repeatCount="indefinite" />
+          <animate attributeName="opacity" values="0.03;0.12;0.03" dur="1.8s" begin="${delay}s" repeatCount="indefinite" />
         </circle>
       </g>`);
   }
-  return beams.join('\n');
+  return squads.join('\n');
 }
 
 function renderFleet(weeks, p) {
@@ -453,7 +482,8 @@ function renderSvg(dark) {
     </g>`;
 
   const cells = renderFleet(data.weeks, p);
-  const beams = renderBeams(p);
+  const bursts = renderBurstShots(p);
+  const dives = renderDiveSquads(p);
   const ship = renderShip(p, stats);
 
   const cellGlowDefs = data.weeks
@@ -523,8 +553,9 @@ function renderSvg(dark) {
   ${monthLabels}
   ${weekdayLabels(p)}
   ${resetPulse}
+  ${dives}
   ${cells}
-  ${beams}
+  ${bursts}
   ${ship}
   ${renderFooter(stats, p)}
 </svg>
