@@ -372,8 +372,8 @@ function monthMarkers(weeks) {
 function weekdayLabels(p) {
   return ['S', 'M', 'T', 'W', 'T', 'F', 'S']
     .map((label, index) => {
-      const y = grid.y + index * step + 23;
-      return `<text x="30" y="${y}" fill="${p.muted}" font-size="15" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="800">${label}</text>`;
+      const y = grid.y + index * step + 26;
+      return `<text x="24" y="${y}" fill="${p.muted}" font-size="22" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="900" filter="url(#textGlow)">${label}</text>`;
     })
     .join('\n');
 }
@@ -381,11 +381,13 @@ function weekdayLabels(p) {
 function renderTitleBar(stats, p) {
   return `
     <g>
-      <rect x="34" y="24" width="2212" height="76" rx="20" fill="${p.panel}" stroke="${p.panelLine}" stroke-width="1.1" />
-      <text x="60" y="60" fill="${p.text}" font-size="23" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="900" letter-spacing="2.6">GALAGA CONTRIBUTION FLEET</text>
-      <text x="516" y="60" fill="${p.muted}" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.2">${escapeXml(formatNumber.format(data.totalContributions || 0))} TOTAL CONTRIBUTIONS</text>
-      <text x="1060" y="60" fill="${p.muted}" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.2">${escapeXml(formatNumber.format(stats.activeDays))} ACTIVE DAYS</text>
-      <text x="1590" y="60" fill="${p.muted}" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.2">STREAK ${escapeXml(formatNumber.format(stats.currentStreak))} / BEST ${escapeXml(formatNumber.format(stats.bestStreak))}</text>
+      <rect x="34" y="18" width="2212" height="126" rx="22" fill="${p.panel}" stroke="${p.panelLine}" stroke-width="1.5" />
+      <rect x="50" y="32" width="2180" height="4" rx="2" fill="url(#frame)" opacity="0.9" filter="url(#glow)" />
+      <text x="60" y="72" fill="${p.text}" font-size="38" font-family="'Press Start 2P', 'Courier New', monospace" font-weight="900" letter-spacing="3.8" filter="url(#textGlow)">GALAGA CONTRIBUTION FLEET</text>
+      <text x="64" y="112" fill="${p.ship}" font-size="21" font-family="'Press Start 2P', 'Courier New', monospace" font-weight="900" letter-spacing="1.8" filter="url(#textGlow)">1UP ${escapeXml(formatNumber.format(data.totalContributions || 0))}</text>
+      <text x="520" y="112" fill="${p.muted}" font-size="21" font-family="'Press Start 2P', 'Courier New', monospace" font-weight="900" letter-spacing="1.8" filter="url(#textGlow)">ACTIVE ${escapeXml(formatNumber.format(stats.activeDays))}</text>
+      <text x="1020" y="112" fill="${p.muted}" font-size="21" font-family="'Press Start 2P', 'Courier New', monospace" font-weight="900" letter-spacing="1.8" filter="url(#textGlow)">STREAK ${escapeXml(formatNumber.format(stats.currentStreak))}</text>
+      <text x="1520" y="112" fill="${p.muted}" font-size="21" font-family="'Press Start 2P', 'Courier New', monospace" font-weight="900" letter-spacing="1.8" filter="url(#textGlow)">BEST ${escapeXml(formatNumber.format(stats.bestStreak))}</text>
     </g>`;
 }
 
@@ -393,11 +395,40 @@ function renderFooter(stats, p) {
   const score = stats.bestStreak * 100 + stats.currentStreak * 20 + stats.activeDays;
   return `
     <g>
-      <rect x="34" y="700" width="2212" height="30" rx="15" fill="${p.strip}" stroke="${p.panelLine}" stroke-width="1" />
-      <text x="58" y="720" fill="${p.text}" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="800" letter-spacing="1.2">POWER LEVEL ${escapeXml(formatNumber.format(Math.max(stats.currentStreak, stats.bestStreak)))}</text>
-      <text x="460" y="720" fill="${p.muted}" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.1">WAVE ${escapeXml(formatNumber.format(stats.activeDays))}</text>
-      <text x="760" y="720" fill="${p.muted}" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.1">GALAGA MODE ENABLED</text>
-      <text x="2058" y="720" fill="${p.muted}" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="700" letter-spacing="1.1">SCORE ${escapeXml(formatNumber.format(score))}</text>
+      <rect x="34" y="682" width="2212" height="58" rx="18" fill="${p.strip}" stroke="${p.panelLine}" stroke-width="1.4" />
+      <rect x="52" y="690" width="2176" height="3" rx="1.5" fill="url(#frame)" opacity="0.75" />
+      <text x="60" y="723" fill="${p.text}" font-size="22" font-family="'Press Start 2P', 'Courier New', monospace" font-weight="900" letter-spacing="1.7" filter="url(#textGlow)">POWER ${escapeXml(formatNumber.format(Math.max(stats.currentStreak, stats.bestStreak)))}</text>
+      <text x="470" y="723" fill="${p.muted}" font-size="22" font-family="'Press Start 2P', 'Courier New', monospace" font-weight="900" letter-spacing="1.7" filter="url(#textGlow)">WAVE ${escapeXml(formatNumber.format(stats.activeDays))}</text>
+      <text x="820" y="723" fill="${p.ship}" font-size="22" font-family="'Press Start 2P', 'Courier New', monospace" font-weight="900" letter-spacing="1.7" filter="url(#textGlow)">GALAGA MODE</text>
+      <text x="1760" y="723" fill="${p.muted}" font-size="22" font-family="'Press Start 2P', 'Courier New', monospace" font-weight="900" letter-spacing="1.7" filter="url(#textGlow)">SCORE ${escapeXml(formatNumber.format(score))}</text>
+    </g>`;
+}
+
+function renderArcadeTrim(p) {
+  const topLights = Array.from({ length: 18 }, (_, index) => {
+    const x = 90 + index * 122;
+    const color = index % 3 === 0 ? p.glowA : index % 3 === 1 ? p.glowB : p.ship;
+    const delay = (index * 0.12).toFixed(2);
+    return `
+      <circle cx="${x}" cy="158" r="5.5" fill="${color}" opacity="0.62" filter="url(#softGlow)">
+        <animate attributeName="opacity" values="0.28;0.9;0.28" dur="2.1s" begin="${delay}s" repeatCount="indefinite" />
+      </circle>`;
+  }).join('\n');
+
+  const sideTicks = Array.from({ length: 9 }, (_, index) => {
+    const y = 194 + index * 50;
+    const color = index % 2 === 0 ? p.glowA : p.glowB;
+    return `
+      <rect x="42" y="${y}" width="18" height="5" rx="2.5" fill="${color}" opacity="0.62" filter="url(#softGlow)" />
+      <rect x="${width - 60}" y="${y}" width="18" height="5" rx="2.5" fill="${color}" opacity="0.62" filter="url(#softGlow)" />`;
+  }).join('\n');
+
+  return `
+    <g>
+      <path d="M 54 164 H ${width - 54}" stroke="url(#frame)" stroke-width="2.4" stroke-dasharray="18 16" opacity="0.72" filter="url(#glow)" />
+      ${topLights}
+      ${sideTicks}
+      <text x="${width / 2}" y="184" text-anchor="middle" fill="${p.text}" font-size="18" font-family="'Press Start 2P', 'Courier New', monospace" font-weight="900" letter-spacing="2.2" opacity="0.92" filter="url(#textGlow)">INSERT COMMITS - PLAYER SEB READY</text>
     </g>`;
 }
 
@@ -558,7 +589,7 @@ function renderSvg(dark) {
   const starfield = buildStarfield(dark ? 1200 : 520, dark ? 132 : 110, p);
 
   const monthLabels = markers
-    .map((marker) => `<text x="${marker.x}" y="${grid.y - 22}" fill="${p.muted}" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-weight="800" letter-spacing="1.1">${marker.label}</text>`)
+    .map((marker) => `<text x="${marker.x}" y="${grid.y - 22}" fill="${p.muted}" font-size="22" font-family="'Press Start 2P', 'Courier New', monospace" font-weight="900" letter-spacing="1.5" filter="url(#textGlow)">${marker.label}</text>`)
     .join('\n');
 
   const scanlines = Array.from({ length: 30 }, (_, index) => {
@@ -629,17 +660,22 @@ function renderSvg(dark) {
         <feMergeNode in="SourceGraphic" />
       </feMerge>
     </filter>
+    <filter id="textGlow" x="-20%" y="-80%" width="140%" height="260%">
+      <feDropShadow dx="0" dy="0" stdDeviation="2.4" flood-color="${p.glowA}" flood-opacity="0.9" />
+      <feDropShadow dx="0" dy="0" stdDeviation="5.2" flood-color="${p.glowB}" flood-opacity="0.35" />
+    </filter>
     ${cellGlowDefs}
   </defs>
   <rect width="100%" height="100%" fill="url(#bg)" />
   <rect x="18" y="18" width="${width - 36}" height="${height - 36}" rx="32" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1" />
   <rect x="22" y="22" width="${width - 44}" height="${height - 44}" rx="30" fill="none" stroke="${p.line}" stroke-width="10" opacity="0.8" />
   <rect x="22" y="22" width="${width - 44}" height="${height - 44}" rx="30" fill="none" stroke="url(#frame)" stroke-width="2.4" filter="url(#glow)" />
-  <rect x="34" y="110" width="${width - 68}" height="560" rx="24" fill="url(#playfield)" stroke="${p.line}" stroke-width="1" />
+  <rect x="34" y="150" width="${width - 68}" height="520" rx="24" fill="url(#playfield)" stroke="${p.line}" stroke-width="1" />
   ${edgeFog}
   ${starfield}
   ${scanlines}
   ${renderTitleBar(stats, p)}
+  ${renderArcadeTrim(p)}
   ${monthLabels}
   ${weekdayLabels(p)}
   ${dives}
