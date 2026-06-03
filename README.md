@@ -2,10 +2,6 @@
 
 Full-stack developer.
 
-# Hi, I'm Seb
-
-Full-stack developer.
-
 ## Tech Stack
 
 <table align="center">
