@@ -249,11 +249,18 @@ function buildTargetSchedule(targets) {
   return targets.map((target) => {
     const span = available * ((1.4 + target.contributionCount * 0.62) / totalWeight);
     const move = Math.min(span * 0.32, 0.018);
+    const arrive = cursor + move;
+    const end = cursor + span;
+    const shotSpacing = Math.max(0.01, end - arrive) / (target.contributionCount + 1);
+    const lastFireAt = arrive + shotSpacing * target.contributionCount;
+    const vanishAt = Math.min(0.985, lastFireAt + 0.045);
     const entry = {
       ...target,
       start: cursor,
-      arrive: cursor + move,
-      end: cursor + span,
+      arrive,
+      end,
+      shotSpacing,
+      vanishAt,
     };
     cursor += span;
     return entry;
@@ -277,12 +284,12 @@ function waveCenterX(waveIndex) {
   return grid.x + playfieldWidth * ((waveIndex + 0.5) / waveCount);
 }
 
-function renderCell(day, x, y, p, weekIndex, totalWeeks, rowIndex) {
+function renderCell(day, x, y, p, weekIndex, totalWeeks, rowIndex, target) {
   const level = Math.max(0, Math.min(4, day.contributionCount));
   const waveIndex = waveForWeek(weekIndex, totalWeeks);
-  const start = waveStart(waveIndex);
-  const hit = waveHit(waveIndex);
-  const end = waveEnd(waveIndex);
+  const hit = target?.vanishAt ?? waveHit(waveIndex);
+  const fade = Math.min(0.992, hit + 0.028);
+  const respawn = 0.998;
   const type = level === 0 ? 'drone' : spriteTypeForCount(level);
   const cellFill = level === 0 ? p.cell0 : p.active[level];
   const hitStrength = Math.max(0.7, level / 4);
@@ -290,10 +297,13 @@ function renderCell(day, x, y, p, weekIndex, totalWeeks, rowIndex) {
   const bob = 1.6 + ((weekIndex + rowIndex) % 3) * 0.35;
   const spriteScale = level === 0 ? 1 : 0.9 + level * 0.04;
   const glowOpacity = level === 0 ? 0 : (0.16 + hitStrength * 0.16).toFixed(2);
+  const vanishAnimation = level > 0
+    ? `<animate attributeName="opacity" values="1;1;0;0;1" keyTimes="0;${hit.toFixed(4)};${fade.toFixed(4)};${respawn.toFixed(4)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />`
+    : '';
 
   return `
     <g transform="translate(${x},${y})">
-      <animate attributeName="opacity" values="1;1;0;0;1" keyTimes="0;${start.toFixed(3)};${hit.toFixed(3)};${end.toFixed(3)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+      ${vanishAnimation}
       <g>
         <animateTransform attributeName="transform" type="translate" values="0,0; 0,-${bob.toFixed(2)}; 0,0" dur="${(2.4 + (level * 0.18)).toFixed(1)}s" begin="${(rowIndex * 0.24 + weekIndex * 0.04).toFixed(2)}s" repeatCount="indefinite" />
         <rect width="${grid.cell}" height="${grid.cell}" rx="5" fill="${p.cell0}" stroke="${p.cellBorder}" stroke-width="0.9" />
@@ -301,7 +311,7 @@ function renderCell(day, x, y, p, weekIndex, totalWeeks, rowIndex) {
         ${level > 0 ? `<g transform="translate(2,2) scale(${spriteScale.toFixed(2)})">${drawMatrix(3, 3, alienSprites[type], cellFill, 1)}<rect x="6" y="6" width="4" height="4" fill="${p.text}" opacity="0.95" /></g>` : ''}
         ${level > 0 ? `
           <g transform="translate(${grid.cell / 2},${grid.cell / 2})" opacity="0">
-            <animate attributeName="opacity" values="0;0;1;0;0" keyTimes="0;${start.toFixed(3)};${hit.toFixed(3)};${Math.min(0.99, hit + 0.07).toFixed(3)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0;0;1;0;0" keyTimes="0;${Math.max(0.0001, hit - 0.012).toFixed(4)};${hit.toFixed(4)};${Math.min(0.996, hit + 0.07).toFixed(4)};1" dur="${cycleSeconds}s" repeatCount="indefinite" />
             <animateTransform attributeName="transform" type="scale" values="0.2;1.4;0.2" keyTimes="0;0.5;1" dur="0.8s" begin="${hit.toFixed(3)}s" repeatCount="indefinite" />
             <circle r="2.2" fill="${p.explosion}" />
             <circle r="6" fill="none" stroke="${p.explosion}" stroke-width="1.5" opacity="0.9" />
@@ -450,13 +460,12 @@ function renderShipFire(p, schedule) {
     const shotCount = target.contributionCount;
     const shotColor = p.active[target.level] || p.laser;
     const shotRadius = 2.2 + target.level * 0.48;
-    const usableSpan = Math.max(0.01, target.end - target.arrive);
-    const shotSpacing = usableSpan / (shotCount + 1);
+    const shotSpacing = target.shotSpacing;
 
     for (let shotIndex = 0; shotIndex < shotCount; shotIndex += 1) {
       const fireAt = target.arrive + shotSpacing * (shotIndex + 1);
       const preFire = Math.max(0.0001, fireAt - 0.006);
-      const hitAt = Math.min(0.995, fireAt + 0.045);
+      const hitAt = Math.min(target.vanishAt, fireAt + 0.045);
       const fadeAt = Math.min(0.998, fireAt + 0.064);
       const offset = shotCount === 1 ? 0 : ((shotIndex % 3) - 1) * 4;
       const shotDistance = Math.max(80, shipY - target.y + 8);
@@ -506,14 +515,26 @@ function renderDiveSquads(p, waves) {
   return squads.join('\n');
 }
 
-function renderFleet(weeks, p) {
+function renderFleet(weeks, p, schedule) {
+  const targetsByCell = new Map(
+    schedule.map((target) => [`${target.weekIndex}-${target.rowIndex}`, target]),
+  );
   const cells = weeks
     .map((week, weekIndex) =>
       week.contributionDays
         .map((day, rowIndex) => {
           const x = grid.x + weekIndex * step;
           const y = grid.y + rowIndex * step;
-          return renderCell(day, x, y, p, weekIndex, weeks.length, rowIndex);
+          return renderCell(
+            day,
+            x,
+            y,
+            p,
+            weekIndex,
+            weeks.length,
+            rowIndex,
+            targetsByCell.get(`${weekIndex}-${rowIndex}`),
+          );
         })
         .join('\n'),
     )
@@ -550,7 +571,7 @@ function renderSvg(dark) {
     <ellipse cx="${width / 2}" cy="${height - 108}" rx="${width * 0.42}" ry="28" fill="url(#frame)" opacity="0.09" filter="url(#softGlow)" />
   `;
 
-  const cells = renderFleet(data.weeks, p);
+  const cells = renderFleet(data.weeks, p, targetSchedule);
   const bursts = renderShipFire(p, targetSchedule);
   const dives = renderDiveSquads(p, waves);
   const ship = renderShip(p, targetSchedule);
