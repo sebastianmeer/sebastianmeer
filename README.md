@@ -50,6 +50,7 @@ Full-stack developer.
     </td>
   </tr>
 </table>
+
 ## Contributions
 
 <picture>
