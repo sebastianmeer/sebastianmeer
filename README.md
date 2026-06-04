@@ -1,6 +1,6 @@
 # Hi, I'm Seb
 
-Full-stack developer.
+Full-stack AI developer.
 
 ## Tech Stack
 
