@@ -2,7 +2,7 @@
 
 Full-stack AI developer.
 
-## My Tech Stack
+## Tech Stack
 
 <table align="center" width="100%">
   <tr>
